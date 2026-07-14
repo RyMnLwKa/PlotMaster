@@ -4,12 +4,9 @@ mapping:
   x: x
   y: y
   target: target
-defaults:
-  kernel: rbf
 pipeline:
   - figure
   - theme
-  - fit_classifier
   - plot_decision_regions
   - tight_layout
   - save
