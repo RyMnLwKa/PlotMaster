@@ -21,6 +21,10 @@ class ChartExecutionPlan:
     # если график строится не по основному DataFrame, а по результату анализа
     # (например, feature_importance или correlation_ranking). None = основной df.
     source: str = None
+    # id DataObject'а типа "model" (см. DataObjectStore.models), если backend'у визуализации
+    # нужна уже ОБУЧЕННАЯ Analyst'ом модель (например mlxtend decision_regions). Backend
+    # получает готовый объект модели через Tool — сам он модель не обучает.
+    model_source: str = None
     # Явное, типизированное описание оформления ЭТОГО графика (title/xlabel/ylabel/
     # color/annotations и т.д.). Backend обязан применить каждое непустое поле.
     plot_description: PlotDescription = field(default_factory=PlotDescription)
