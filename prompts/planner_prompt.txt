@@ -38,7 +38,15 @@
 - boxplot: x, y, color_by
 - barplot: x, y, color_by
 - pairplot: color_by
-- decision_regions: x, y, target (два числовых признака + категориальная метка класса)
+- decision_regions: x, y, target (два числовых признака + категориальная метка класса).
+  ВАЖНО: этот backend НЕ обучает модель сам — ему обязательно нужна уже обученная
+  модель. Используй decision_regions ТОЛЬКО если в analysis_context есть объект с
+  "type": "model" (Analyst обучил классификатор и передал его через emit). В этом
+  случае ОБЯЗАТЕЛЬНО укажи в metadata графика "model_source": "<id этой модели>"
+  (в дополнение к обычным semantic.x/y/target — они по-прежнему берутся из обычных
+  столбцов dataset_context, если модель обучалась на них). Если модели в
+  analysis_context нет — decision_regions построить нельзя, выбери другой chart_type
+  или не строй график вовсе.
 
 Твоя задача — вернуть СТРОГО JSON-объект (без markdown, без пояснений, без обратных кавычек)
 в следующем формате VisualizationTask:
