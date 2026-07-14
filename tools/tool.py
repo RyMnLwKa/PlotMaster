@@ -4,7 +4,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import pandas as pd
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Any
 from models.execution_plan import ExecutionPlan, ChartExecutionPlan
 from models.visualization_artifact import VisualizationArtifact
 from tools import matplotlib_backend, seaborn_backend, mlxtend_backend
@@ -26,17 +26,34 @@ class Tool:
 
     extra_frames — те же самостоятельные таблицы анализа, что передавались в Executor.run,
     нужны здесь, чтобы каждый ChartExecutionPlan.source был построен по своей таблице.
+    models — DataObjectStore.models(): {id: обученная модель}, нужны здесь, чтобы backend'ы,
+    которым требуется уже обученная модель (например mlxtend decision_regions), получили
+    готовый объект через chart_plan.model_source — сами backend'ы модель НЕ обучают.
     """
 
     def run(self, plan: ExecutionPlan, df: pd.DataFrame,
-            extra_frames: Optional[Dict[str, pd.DataFrame]] = None) -> List[VisualizationArtifact]:
+            extra_frames: Optional[Dict[str, pd.DataFrame]] = None,
+            models: Optional[Dict[str, Any]] = None) -> List[VisualizationArtifact]:
         extra_frames = extra_frames or {}
+        models = models or {}
         if plan.output_mode == "dashboard":
-            return self._run_dashboard(plan, df, extra_frames)
-        return self._run_separate(plan.charts, df, extra_frames)
+            return self._run_dashboard(plan, df, extra_frames, models)
+        return self._run_separate(plan.charts, df, extra_frames, models)
+
+    def _resolve_model(self, chart_plan: ChartExecutionPlan, models: Dict[str, Any]) -> Optional[Any]:
+        if not chart_plan.model_source:
+            return None
+        model = models.get(chart_plan.model_source)
+        if model is None:
+            raise ValueError(
+                f"[{chart_plan.chart_id}] metadata.model_source='{chart_plan.model_source}' "
+                f"не найден среди результатов анализа: {list(models.keys())}"
+            )
+        return model
 
     def _run_separate(self, chart_plans: List[ChartExecutionPlan], df: pd.DataFrame,
-                       extra_frames: Dict[str, pd.DataFrame]) -> List[VisualizationArtifact]:
+                       extra_frames: Dict[str, pd.DataFrame],
+                       models: Dict[str, Any]) -> List[VisualizationArtifact]:
         artifacts = []
         for chart_plan in chart_plans:
             chart_df = extra_frames.get(chart_plan.source, df) if chart_plan.source else df
@@ -53,11 +70,26 @@ class Tool:
                     warnings=[f"Неизвестный backend '{chart_plan.backend}'"],
                 ))
                 continue
-            artifacts.append(backend_module.run(chart_plan, chart_df))
+            try:
+                model = self._resolve_model(chart_plan, models)
+            except ValueError as e:
+                artifacts.append(VisualizationArtifact(
+                    chart_id=chart_plan.chart_id,
+                    semantic=chart_plan.semantic,
+                    image_path="",
+                    backend=chart_plan.backend,
+                    function=chart_plan.function,
+                    execution_time=0.0,
+                    status="error",
+                    warnings=[str(e)],
+                ))
+                continue
+            artifacts.append(backend_module.run(chart_plan, chart_df, model=model))
         return artifacts
 
     def _run_dashboard(self, plan: ExecutionPlan, df: pd.DataFrame,
-                        extra_frames: Dict[str, pd.DataFrame]) -> List[VisualizationArtifact]:
+                        extra_frames: Dict[str, pd.DataFrame],
+                        models: Dict[str, Any]) -> List[VisualizationArtifact]:
         """Рисует все совместимые графики как N подграфиков (axes) на одной общей Figure
         и сохраняет их одним файлом (output/dashboard.png). Графики, чей backend/function
         не умеет рисовать на "чужом" ax (pairplot/jointplot), выпадают из дашборда и
@@ -69,7 +101,7 @@ class Tool:
         dashboard_ids = {id(cp) for cp in dashboard_charts}
         fallback_charts = [cp for cp in plan.charts if id(cp) not in dashboard_ids]
 
-        artifacts = self._run_separate(fallback_charts, df, extra_frames)
+        artifacts = self._run_separate(fallback_charts, df, extra_frames, models)
         for a in artifacts:
             a.warnings = list(a.warnings) + [
                 "график несовместим с output_mode='dashboard' — сохранён отдельным файлом"
@@ -102,7 +134,8 @@ class Tool:
             chart_df = extra_frames.get(chart_plan.source, df) if chart_plan.source else df
             backend_module = BACKENDS[chart_plan.backend]
             try:
-                statistics = backend_module.render(chart_plan, chart_df, ax)
+                model = self._resolve_model(chart_plan, models)
+                statistics = backend_module.render(chart_plan, chart_df, ax, model=model)
                 artifacts.append(VisualizationArtifact(
                     chart_id=chart_plan.chart_id,
                     semantic=chart_plan.semantic,
