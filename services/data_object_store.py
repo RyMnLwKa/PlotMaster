@@ -71,6 +71,23 @@ class DataObjectStore:
 
         return result
 
+    def models(self) -> Dict[str, Any]:
+        """
+        Возвращает DataObject'ы типа 'model' как {id: обученная модель}. Раньше модели,
+        переданные Analyst'ом, использовались ТОЛЬКО для текстовой интерпретации
+        (Interpreter). Теперь backend'ы визуализации, которым нужна уже обученная модель
+        (например mlxtend decision_regions), тоже могут её получить — но НЕ обучают
+        сами: Tool резолвит chart_task.metadata['model_source'] через этот метод и
+        передаёт готовый объект модели в backend.run()/render(model=...).
+        """
+        models = {}
+        for obj in self._objects.values():
+            if obj.status == "error":
+                continue
+            if obj.type == "model":
+                models[obj.id] = obj.value
+        return models
+
     def standalone_frames(self, base_len: int = None) -> Dict[str, pd.DataFrame]:
         """
         Возвращает DataFrame-объекты, НЕ выровненные по строкам исходного датасета
@@ -124,9 +141,19 @@ class DataObjectStore:
                         f"\"source\": \"{obj.id}\" — Executor построит его поверх этой таблицы "
                         f"вместо основного датасета (например barplot x='{cols[0]}', y='{cols[1]}')."
                     )
+            elif obj.type == "model":
+                entry["usable_as_column"] = False
+                entry["hint"] = (
+                    f"{obj.description} Обученная модель — не столбец графика, но может "
+                    f"использоваться визуализацией, которой нужна уже обученная модель "
+                    f"(например decision_regions). Если нужно построить такой график по "
+                    f"этой модели, укажи в metadata графика \"model_source\": \"{obj.id}\" "
+                    f"(в дополнение к обычным semantic.x/y/target) — Tool передаст готовую "
+                    f"модель в backend, backend её НЕ переобучает."
+                )
             else:
                 entry["usable_as_column"] = False
-                entry["hint"] = f"{obj.description} Метрики/модель — использовать только в текстовой интерпретации, не как столбец графика."
+                entry["hint"] = f"{obj.description} Метрики — использовать только в текстовой интерпретации, не как столбец графика."
             summary.append(entry)
         return summary
 
