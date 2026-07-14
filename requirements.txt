@@ -1,0 +1,12 @@
+pandas
+numpy
+pydantic
+matplotlib
+seaborn
+pyyaml
+requests
+scikit-learn
+mlxtend
+ollama
+openpyxl
+prompt_toolkit

@@ -1,0 +1,15 @@
+backend: seaborn
+function: histplot
+mapping:
+  x: x
+  color_by: hue
+defaults:
+  kde: true
+  bins: 30
+pipeline:
+  - figure
+  - theme
+  - histplot
+  - tight_layout
+  - save
+  - close

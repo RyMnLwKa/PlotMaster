@@ -1,0 +1,14 @@
+backend: seaborn
+function: boxplot
+mapping:
+  x: x
+  y: y
+  color_by: hue
+defaults: {}
+pipeline:
+  - figure
+  - theme
+  - boxplot
+  - tight_layout
+  - save
+  - close

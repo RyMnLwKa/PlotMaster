@@ -1,0 +1,16 @@
+backend: seaborn
+function: lineplot
+mapping:
+  x: x
+  y: y
+  color_by: hue
+defaults:
+  linewidth: 2
+pipeline:
+  - figure
+  - theme
+  - lineplot
+  - legend
+  - tight_layout
+  - save
+  - close

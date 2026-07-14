@@ -1,0 +1,9 @@
+backend: seaborn
+function: pairplot
+mapping:
+  color_by: hue
+defaults: {}
+pipeline:
+  - pairplot
+  - save
+  - close

@@ -1,0 +1,14 @@
+backend: seaborn
+function: barplot
+mapping:
+  x: x
+  y: y
+  color_by: hue
+defaults: {}
+pipeline:
+  - figure
+  - theme
+  - barplot
+  - tight_layout
+  - save
+  - close

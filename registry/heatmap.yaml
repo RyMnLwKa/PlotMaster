@@ -1,0 +1,14 @@
+backend: seaborn
+function: heatmap
+mapping: {}
+defaults:
+  annot: true
+  cmap: coolwarm
+pipeline:
+  - figure
+  - theme
+  - correlation_matrix
+  - heatmap
+  - tight_layout
+  - save
+  - close

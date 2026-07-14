@@ -1,0 +1,18 @@
+backend: seaborn
+function: scatterplot
+mapping:
+  x: x
+  y: y
+  color_by: hue
+  size_by: size
+defaults:
+  alpha: 0.8
+pipeline:
+  - figure
+  - theme
+  - scatterplot
+  - regplot
+  - legend
+  - tight_layout
+  - save
+  - close
