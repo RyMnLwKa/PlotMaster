@@ -26,5 +26,6 @@ class ExecutionPlanBuilder:
             semantic=chart_task.semantic,
             output_path=output_path,
             source=(chart_task.metadata or {}).get("source"),
+            model_source=(chart_task.metadata or {}).get("model_source"),
             plot_description=plot_description or PlotDescription(),
         )
