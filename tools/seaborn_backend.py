@@ -25,7 +25,7 @@ def _apply_theme(theme: Dict[str, Any]):
     plt.rcParams["font.family"] = theme.get("font", "DejaVu Sans")
 
 
-def render(plan: ChartExecutionPlan, df: pd.DataFrame, ax) -> Dict[str, Any]:
+def render(plan: ChartExecutionPlan, df: pd.DataFrame, ax, model=None, source_dict=None) -> Dict[str, Any]:
     """Рисует график plan на уже существующем ax (без создания/сохранения Figure).
 
     Используется и для одиночного файла (run()), и для дашборда (DashboardRenderer).
@@ -115,7 +115,7 @@ def render(plan: ChartExecutionPlan, df: pd.DataFrame, ax) -> Dict[str, Any]:
     return statistics
 
 
-def run(plan: ChartExecutionPlan, df: pd.DataFrame) -> VisualizationArtifact:
+def run(plan: ChartExecutionPlan, df: pd.DataFrame, model=None, source_dict=None) -> VisualizationArtifact:
     start = time.time()
     warnings = []
     statistics = {}
@@ -134,7 +134,7 @@ def run(plan: ChartExecutionPlan, df: pd.DataFrame) -> VisualizationArtifact:
             statistics["samples"] = int(len(df))
         else:
             fig, ax = plt.subplots(figsize=fig_size)
-            statistics = render(plan, df, ax)
+            statistics = render(plan, df, ax, model=model, source_dict=source_dict)
 
         plt.tight_layout()
         fig.savefig(plan.output_path, dpi=plan.theme.get("dpi", 120))

@@ -88,6 +88,23 @@ class DataObjectStore:
                 models[obj.id] = obj.value
         return models
 
+    def dicts(self) -> Dict[str, Dict[str, Any]]:
+        """
+        Возвращает DataObject'ы типа 'dict' как {id: словарь}. Нужен для случаев, когда
+        данные для графика (например X_train/y_train/X_test/y_test у mlxtend
+        plot_learning_curves) имеют РАЗНУЮ длину и поэтому не могут быть уложены в один
+        pd.DataFrame (там все столбцы обязаны быть одной длины) — Analyst вместо таблицы
+        отдаёт обычный словарь, Tool резолвит chart_task.metadata['source'] через этот
+        метод (наравне со standalone_frames()) и передаёт готовый dict в backend.
+        """
+        dicts = {}
+        for obj in self._objects.values():
+            if obj.status == "error":
+                continue
+            if obj.type == "dict":
+                dicts[obj.id] = obj.value
+        return dicts
+
     def standalone_frames(self, base_len: int = None) -> Dict[str, pd.DataFrame]:
         """
         Возвращает DataFrame-объекты, НЕ выровненные по строкам исходного датасета
@@ -150,6 +167,17 @@ class DataObjectStore:
                     f"этой модели, укажи в metadata графика \"model_source\": \"{obj.id}\" "
                     f"(в дополнение к обычным semantic.x/y/target) — Tool передаст готовую "
                     f"модель в backend, backend её НЕ переобучает."
+                )
+            elif obj.type == "dict":
+                keys = list(obj.value.keys()) if isinstance(obj.value, dict) else []
+                entry["usable_as_column"] = False
+                entry["keys"] = keys
+                entry["hint"] = (
+                    f"{obj.description} Обычный словарь с ключами {keys} — используется ТОЛЬКО "
+                    f"когда данные разной длины и их нельзя положить в один DataFrame (например "
+                    f"train/test split для learning_curves, где X_train/X_test — разного размера). "
+                    f"Укажи в metadata графика \"source\": \"{obj.id}\", Tool передаст этот словарь "
+                    f"backend'у как есть, без материализации в столбцы."
                 )
             else:
                 entry["usable_as_column"] = False

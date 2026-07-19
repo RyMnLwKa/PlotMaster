@@ -9,7 +9,9 @@ class ValidationError(Exception):
 class Validator:
     """Внутренний Service Executor'а. Проверяет корректность ChartTask относительно DataFrame."""
 
-    COLUMN_SEMANTIC_KEYS = ["x", "y", "color_by", "size_by", "hue", "column", "columns", "target"]
+    COLUMN_SEMANTIC_KEYS = ["x", "y", "color_by", "size_by", "hue", "column", "columns", "target",
+                            "yerr_by", "xerr_by", "labels_by", "y_true", "y_pred",  "X_train", "y_train",
+                            "X_test", "y_test"]
 
     def run(self, chart_task: ChartTask, df: pd.DataFrame) -> ChartTask:
         semantic = dict(chart_task.semantic or {})

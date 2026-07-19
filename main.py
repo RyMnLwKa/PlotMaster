@@ -119,6 +119,12 @@ def main():
 
     try:
         df = load_dataframe(args.data)
+
+        from sklearn.datasets import load_diabetes
+        diabetes = load_diabetes()
+        df = pd.DataFrame(diabetes.data, columns=diabetes.feature_names)
+        df['target'] = diabetes.target
+
         logging.info(f"Загружен датасет: {df.shape[0]} строк, {df.shape[1]} столбцов.")
     except Exception as e:
         logger.critical("Ошибка загрузки данных: %s", e, exc_info=True)
@@ -154,7 +160,9 @@ def main():
     prompt = args.prompt
     if not prompt:
         logger.debug("Промпт не указан, запрашиваем у пользователя")
-        prompt = input("\nВведите запрос для визуализации данных: ").strip()
+        from prompt_toolkit import prompt
+        prompt = prompt("\nВведите запрос для визуализации данных: ").strip()
+        #prompt = input("\nВведите запрос для визуализации данных: ").strip()
 
     prompt = clean_prompt(prompt)
     logger.debug("Промпт: %s", prompt)

@@ -19,6 +19,14 @@ class Executor:
     (например, таблицу model_comparison/feature_importance). Если chart_task.metadata
     ['source'] указывает на id такой таблицы, валидация и построение графика идут по ней.
 
+    dicts — DataObjectStore.dicts(): {id: dict}, тот же уровень, что и extra_frames/
+    model_source — самостоятельные DataObject'ы типа 'dict' (данные разной длины,
+    которые нельзя было положить в DataFrame, например X_train/y_train/X_test/y_test
+    для mlxtend plot_learning_curves). metadata['source'] может указывать и на них.
+    В отличие от extra_frames, содержимое dict НЕ валидируется здесь по столбцам df —
+    это делает сам backend (Tool резолвит dicts и передаёт значение backend'у напрямую),
+    Executor лишь не должен ошибочно отвергать такой source как "не найденный".
+
     Если source не указан, но столбцы графика не найдены в основном df — Executor
     пытается автоматически найти единственную extra_frame, содержащую ВСЕ нужные
     столбцы, и использует её (подстраховка на случай, если Planner забыл указать source).
@@ -51,18 +59,25 @@ class Executor:
         return matches[0] if len(matches) == 1 else None
 
     def run(self, task: VisualizationTask, df: pd.DataFrame,
-            extra_frames: Optional[Dict[str, pd.DataFrame]] = None) -> ExecutionPlan:
+            extra_frames: Optional[Dict[str, pd.DataFrame]] = None,
+            dicts: Optional[Dict[str, Dict]] = None) -> ExecutionPlan:
         extra_frames = extra_frames or {}
+        dicts = dicts or {}
         plan = ExecutionPlan(output_mode=task.output_mode, layout=task.layout)
         for chart_task in task.charts:
             source = (chart_task.metadata or {}).get("source")
-            if source and source not in extra_frames:
+            is_dict_source = source in dicts
+            if source and source not in extra_frames and not is_dict_source:
                 raise ValueError(
                     f"[{chart_task.id}] metadata.source='{source}' не найден среди результатов "
-                    f"анализа: {list(extra_frames.keys())}"
+                    f"анализа: {list(extra_frames.keys()) + list(dicts.keys())}"
                 )
 
-            chart_df = extra_frames[source] if source else df
+            # dict-источник (например X_train/y_train/X_test/y_test для learning_curves)
+            # не таблица — по её столбцам ничего проверять нельзя, поэтому валидируем/строим
+            # план по основному df, а сам dict дальше резолвит и передаёт backend'у Tool,
+            # так же, как и model_source.
+            chart_df = extra_frames[source] if source and not is_dict_source else df
 
             if not source and extra_frames:
                 # Planner мог сослаться на столбцы аналитической таблицы, забыв указать

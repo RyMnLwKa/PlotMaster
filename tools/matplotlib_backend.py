@@ -14,8 +14,31 @@ _POSITION_COORDS = {
     "bottom_left": (0.02, 0.02, "left", "bottom"),
 }
 
+# kwargs-ключи, значения которых registry/Planner передают как ИМЯ СТОЛБЦА (строку),
+# но которые matplotlib ожидает как массив данных, а не как строку. Можн обновлять при
+# расширении registry/
+ARRAY_COLUMN_KWARGS = {"yerr", "xerr", "labels"}
 
-def render(plan: ChartExecutionPlan, df: pd.DataFrame, ax) -> Dict[str, Any]:
+# функции, для которых x/y не подписываются как xlabel/ylabel и не красятся через
+# pd_desc.color (у pie нет декартовых осей, а color для одного сектора не имеет смысла —
+# для множества цветов есть kwarg "colors", который пользователь может передать явно
+# через style/defaults).
+_NO_AXES_LABELS_FUNCTIONS = {"pie"}
+
+def _resolve_array_kwargs(kwargs: Dict[str, Any], df: pd.DataFrame) -> None:
+    """Функция превращает имена колонок (переданные как строки)
+    из kwargs, представленных в ARRAY_COLUMN_KWARGS в реальные данные из
+    этих колонок (массивы/списки). Если kwarg уже не литерал, то не трогаем"""
+    for key in ARRAY_COLUMN_KWARGS:
+        if key not in kwargs:
+            continue
+        value = kwargs[key]
+        if isinstance(value, str) and value in df.columns:
+            kwargs[key] = df[value].tolist() if key == "labels" else df[value].to_numpy()
+
+
+
+def render(plan: ChartExecutionPlan, df: pd.DataFrame, ax, model=None, source_dict=None) -> Dict[str, Any]:
     """Рисует график plan на уже существующем ax (без создания/сохранения Figure).
 
     Используется и для одиночного файла (run() создаёт свой ax и вызывает render),
@@ -29,7 +52,9 @@ def render(plan: ChartExecutionPlan, df: pd.DataFrame, ax) -> Dict[str, Any]:
     y = kwargs.pop("y", None)
     pd_desc = plan.plot_description
 
-    if pd_desc.color:
+    _resolve_array_kwargs(kwargs, df)
+
+    if pd_desc.color and plan.function not in _NO_AXES_LABELS_FUNCTIONS:
         kwargs["color"] = pd_desc.color
 
     func = getattr(ax, plan.function)
@@ -45,12 +70,13 @@ def render(plan: ChartExecutionPlan, df: pd.DataFrame, ax) -> Dict[str, Any]:
     if title:
         ax.set_title(title, fontsize=pd_desc.font_size)
 
-    xlabel = pd_desc.xlabel or x
-    if xlabel:
-        ax.set_xlabel(xlabel, fontsize=pd_desc.font_size)
-    ylabel = pd_desc.ylabel or y
-    if ylabel:
-        ax.set_ylabel(ylabel, fontsize=pd_desc.font_size)
+    if plan.function not in _NO_AXES_LABELS_FUNCTIONS:
+        xlabel = pd_desc.xlabel or x
+        if xlabel:
+            ax.set_xlabel(xlabel, fontsize=pd_desc.font_size)
+        ylabel = pd_desc.ylabel or y
+        if ylabel:
+            ax.set_ylabel(ylabel, fontsize=pd_desc.font_size)
 
     want_legend = pd_desc.legend if pd_desc.legend is not None else plan.theme.get("legend", True)
     if want_legend and ax.get_legend_handles_labels()[0]:
@@ -75,7 +101,7 @@ def render(plan: ChartExecutionPlan, df: pd.DataFrame, ax) -> Dict[str, Any]:
     return statistics
 
 
-def run(plan: ChartExecutionPlan, df: pd.DataFrame) -> VisualizationArtifact:
+def run(plan: ChartExecutionPlan, df: pd.DataFrame, model=None, source_dict=None) -> VisualizationArtifact:
     start = time.time()
     warnings = []
     statistics = {}
@@ -87,7 +113,7 @@ def run(plan: ChartExecutionPlan, df: pd.DataFrame) -> VisualizationArtifact:
         fig_size = tuple(plan.theme.get("figure_size", [8, 5]))
         fig, ax = plt.subplots(figsize=fig_size)
 
-        statistics = render(plan, df, ax)
+        statistics = render(plan, df, ax, model=model, source_dict=source_dict)
 
         plt.tight_layout()
         fig.savefig(plan.output_path, dpi=plan.theme.get("dpi", 120))

@@ -8,7 +8,7 @@ from pprint import pformat
 
 logger = logging.getLogger(__name__)
 
-ALLOWED_TYPES = ("series", "dataframe", "metrics", "model", "array")
+ALLOWED_TYPES = ("series", "dataframe", "metrics", "model", "array", "dict")
 
 def log_func(level=logging.DEBUG):  # Применяется к любой функции класса (преимущественно __init__ или to_dict)
     def decorator(func):
@@ -75,6 +75,10 @@ class DataObject:
                     f"columns {self.columns} не совпадает с фактическими "
                     f"столбцами value {actual_columns}"
                 )
+
+        if self.type == "dict":
+            if not isinstance(self.value, dict):
+                return "Для type='dict' value должен быть dict"
 
         return None
 

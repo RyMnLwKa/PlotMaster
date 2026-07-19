@@ -29,6 +29,13 @@
   НИКОГДА не ссылайся на "model_name"/"accuracy" и подобные производные столбцы как на
   обычные столбцы dataset_context — они существуют ТОЛЬКО внутри analysis_context
   таблицы и требуют metadata.source.
+- type="dict" → используется ТОЛЬКО когда данным нельзя быть столбцами одного DataFrame,
+  потому что они РАЗНОЙ длины (типичный случай — train/test split, где X_train и X_test
+  имеют разное число строк). Это просто словарь с ключами (см. "keys" у этого объекта в
+  analysis_context), а не таблица. Чтобы построить график по нему, укажи в metadata графика
+  "source": "<id>" — так же, как для самостоятельной таблицы (aligned_with_dataset=false),
+  но semantic-поля графика, ожидающие имена столбцов, в этом случае получат прямо ключи
+  словаря (см. learning_curves ниже).
 
 Доступные типы графиков (chart_type) и их допустимые семантические поля:
 - scatter: x, y, color_by, size_by, show_regression (bool)
@@ -38,6 +45,12 @@
 - boxplot: x, y, color_by
 - barplot: x, y, color_by
 - pairplot: color_by
+- violinplot: x, y, color_by
+- kdeplot: x, y, color_by (одномерная или двумерная плотность распределения)
+- swarmplot: x, y, color_by
+- ecdfplot: x, color_by (эмпирическая функция распределения)
+- countplot: x, color_by (подсчёт наблюдений по категориям x)
+- errorbar: x, y, yerr_by (столбец с величиной ошибки/разброса для y), xerr_by (опционально, аналогично для x)
 - decision_regions: x, y, target (два числовых признака + категориальная метка класса).
   ВАЖНО: этот backend НЕ обучает модель сам — ему обязательно нужна уже обученная
   модель. Используй decision_regions ТОЛЬКО если в analysis_context есть объект с
@@ -47,6 +60,18 @@
   столбцов dataset_context, если модель обучалась на них). Если модели в
   analysis_context нет — decision_regions построить нельзя, выбери другой chart_type
   или не строй график вовсе.
+- confusion_matrix: y_true, y_pred (столбцы с фактическими и предсказанными метками),
+  опционально class_names (список подписей классов, НЕ столбец, а просто список строк).
+  Backend сам считает матрицу ошибок по этим двум столбцам — модель не нужна.
+  Используй, если в dataset_context или analysis_context (aligned_with_dataset=true)
+  есть и фактические, и предсказанные метки.
+- learning_curves: X_train, y_train, X_test, y_test (X_* — один или несколько числовых
+  признаков, y_* — целевая переменная). ВАЖНО: как и decision_regions, этот backend НЕ
+  обучает модель сам — нужен объект "type": "model" в analysis_context, укажи
+  "model_source": "<id модели>". Train/test split backend тоже НЕ делает — он должен быть
+  уже готов у Analyst'а. Т.к. train и test обычно РАЗНОЙ длины, их нельзя положить в один
+  DataFrame — поэтому Analyst отдаёт их не таблицей ("type": "dataframe"), а объектом-словарём
+  с ключами X_train/y_train/X_test/y_test ("type": "dict").
 
 Твоя задача — вернуть СТРОГО JSON-объект (без markdown, без пояснений, без обратных кавычек)
 в следующем формате VisualizationTask:
@@ -107,6 +132,6 @@
 - Используй ТОЛЬКО столбцы из dataset_context.columns ИЛИ (с соответствующим
   metadata.source) столбцы из analysis_context — никаких других имён.
 - Выбирай chart_type осмысленно, исходя из типов столбцов (numeric_columns, categorical_columns).
-- Не придумывай столбцы. Не используй библиотечные термины (hue, ax, kwargs и т.д.) — только семантику.
+- Не придумывай столбцы. Не используй библиотечные термины (hue, ax, kwargs и т.д.) — только указанную семантику.
 - Верни МИНИМУМ 1 и МАКСИМУМ 6 графиков, релевантных запросу пользователя.
 - Ответ должен быть валидным JSON и ничем больше.

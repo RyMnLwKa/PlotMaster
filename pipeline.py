@@ -68,6 +68,7 @@ class VisualizationPipeline:
         working_df = store.augmented_dataframe(df) if not store.is_empty() else df
         extra_frames = store.standalone_frames(base_len=len(df)) if not store.is_empty() else {}
         models = store.models() if not store.is_empty() else {}
+        dicts = store.dicts() if not store.is_empty() else {}
 
         planner_input = PlannerInput(
             prompt=prompt,
@@ -78,11 +79,11 @@ class VisualizationPipeline:
         if verbose:
             print(f"[4/8] Planner вернул задачу: {len(task.charts)} график(ов).")
 
-        plan = self.executor.run(task, working_df, extra_frames=extra_frames)
+        plan = self.executor.run(task, working_df, extra_frames=extra_frames, dicts=dicts)
         if verbose:
             print("[5/8] ExecutionPlan построен.")
 
-        artifacts = self.tool.run(plan, working_df, extra_frames=extra_frames, models=models)
+        artifacts = self.tool.run(plan, working_df, extra_frames=extra_frames, models=models, dicts=dicts)
         if verbose:
             ok = sum(1 for a in artifacts if a.status == "ok")
             print(f"[6/8] Tool выполнил построение: {ok}/{len(artifacts)} успешно.")
